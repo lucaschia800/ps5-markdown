@@ -58,7 +58,7 @@ You first task is to do a very simple data check:
 ```{r, message=FALSE}
 
 library(tidyverse)
-data_pop <- read_delim("../Documents/INFO 201/gapminder.csv.bz2")
+data_pop <- read_delim("../gapminder.csv.bz2")
 
 
 dim(data_pop)
@@ -196,8 +196,6 @@ data_pop %>%
   filter(rank(desc(co2_PC))==1) %>% 
   select(region,name,co2_PC)
 
-data_pop %>% 
-  filter(is.na(region))
 ```
 
 
