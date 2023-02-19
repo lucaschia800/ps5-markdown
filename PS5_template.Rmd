@@ -1,0 +1,255 @@
+---
+title: "PS5 Template"
+author: "Your Name"
+date: "2/13/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+# Instructions
+This is a problem set about rmarkdown and plotting (using ggplot). Unlike the previous problem sets, this one does not give you a ready-made GH repo with a code file–it is now your task to create a repo and include your rmarkdown file in there.\
+
+You should answer the questions below in that file, knit it, and submit both the compiled html and link to your repo on canvas.\
+
+- This problem sets asks you to write extensively when commenting your results. Please write clearly! Answer questions in a way that if the code chunks are hidden then the result is still readable! \
+    * All substantial questions need explanations. You do not have to explain the simple things like “how many rows are there in data”, but if you make a plot of life expectancy, then you should explain what does the plot tell you. \
+    * Write explanations as markdown and use the styles like bold and italic as appropriate.\
+- Do not print too much results. It is all well to print a few lines of data for evaluation/demonstration purposes. But do not print dozens (or thousands!) of lines–no one bothers to look at that many numbers. You will lose points for annoying others (here your graders, but later potentially your boss). \
+- Do not make code lines too long. 80-100 characters is a good choice. Your grader may not be able to follow all the code if the line is too long–most of us are using small laptop screens! (And again–you want to keep your graders happy!) \
+
+# Gapminder data
+We use gapminder dataset, downloaded from [**https://www.gapminder.org/data/**](https://www.gapminder.org/data/), however, the data structure there is quire complex, please use the dataset provided on canvas (in files/data). \
+The variables are: \
+**name** country name \
+**iso3** 3-letter country code \
+**iso2** 2-letter country code \
+**region** broad geographic region \
+**sub-region** more precise region \
+**intermediate-region** \
+**time** year \
+**totalPopulation** total population \
+**GDP_PC** GDP per capita (constant 2010 US$) \
+**accessElectricity** Access to electricity (% of population) \
+**agriculturalLand** Agricultural land (sq. km) \
+**agricultureTractors** Agricultural machinery, tractors (count) \
+**cerealProduction** Cereal production (metric tons) \
+**feritilizerHa** Fertilizer consumption (kilograms per hectare of arable land) \
+**fertilityRate** total fertility rate (births per woman) \
+**lifeExpectancy** Life expectancy at birth, total (years) \
+**childMortality** Mortality rate, under-5 (per 1,000 live births) \
+**youthFemaleLiteracy** Literacy rate, youth female (% of females ages 15-24) \
+**youthMaleLiteracy** Literacy rate, youth male (% of males ages 15-24) \
+**adultLiteracy** Literacy rate, adult total (% of people ages 15 and above) \
+**co2** CO2 emissions (kt) \
+**greenhouseGases** Total greenhouse gas emissions (kt of CO2 equivalent) \
+**co2_PC** CO2 emissions (metric tons per capita) \
+**pm2.5_35** PM2.5 pollution, population exposed to levels exceeding WHO Interim Target-1 value 36ug/m3 \
+**battleDeaths** Battle-related deaths (number of people) \
+
+# 1 Load and check data (5pt)
+You first task is to do a very simple data check: 
+
+1. (1pt) For solving the problems, and answering the questions, create a new rmarkdown document with an appropriate title. See [**https://faculty.washington.edu/otoomet/info201-book/r-markdown.html#r-markdown-rstudio-creating**](https://faculty.washington.edu/otoomet/info201-book/r-markdown.html#r-markdown-rstudio-creating). \
+
+2. (2pt) Load data. How many rows/columns do we have?  \
+```{r, message=FALSE}
+
+library(tidyverse)
+data_pop <- read_delim("../Documents/INFO 201/gapminder.csv.bz2")
+
+
+dim(data_pop)
+```
+It has 13055 rows and 25 columns
+
+3. (2pt) Print a small sample of data. Does it look OK? 
+```{r}
+sample_n(data_pop,5)
+```
+Everything looks good
+  
+  
+---------------------------------------------------------------------
+
+
+# 2 Descriptive statistics (15pt)
+
+1. (3pt) How many countries are there in the dataset? Analyze all three: *iso3*, *iso2* and *name*.
+```{r}
+n_distinct(data_pop$name)
+n_distinct(data_pop$iso2)
+n_distinct(data_pop$iso3)
+
+```
+According to column "name", there are 250 countries, "iso2" has 249, and
+"iso3" has 253.
+
+2. If you did this correctly, you saw that there are more names than iso2 codes, and there are even more *iso3*-codes. What is going on? Can you find it out?
+
+    (a) (5pt) Find how many names are there for each iso-2 code. Are there any iso-2 codes that correspond to more than one name? What are these countries?
+    ```{r}
+data_pop %>% 
+  group_by(iso2) %>% 
+  distinct(name) %>% 
+  filter(is.na(iso2))
+  
+```
+Namibia does not have an iso2 code which is the reason why there is one more
+unique value in names than iso2
+    (b) (5pt) Now repeat the same for name and iso3-code. Are there country names that have more than one iso3-code? What are these countries? Hint: two of these entitites are *CHANISL* and *NLD CURACAO*.
+```{r}
+data_pop %>% 
+  filter(is.na(name)) %>% 
+  distinct(iso3)
+
+data_pop %>% 
+  group_by(iso3) %>% 
+  distinct(name) %>% 
+  count() %>% 
+  arrange(desc(n))
+
+```
+Once again, it's not that one country has two different iso3 codes but rather there are countries that have iso3 codes but were not given names, hence there being more iso3 codes than there are names
+    
+3. (2pt) What is the minimum and maximum year in these data?
+```{r}
+min_max <- data_pop %>% 
+  filter(!is.na(time)) %>% 
+  summarize(min=min(time),max=max(time))
+ 
+min_max
+```
+The minimum year is `r min_max[,1]` and the maximum year is `r min_max[,2]`.
+
+---------------------------------------------------------------------
+
+# 3 CO2 emissions (30pt)
+Next, let’s analyze CO2 emissions.
+
+1. (2pt) How many missing co2 emissions are there for each year? Analyze both missing *CO2* and *co2_PC*. Which years have most missing data? \
+```{r}
+data_pop %>% 
+  mutate(missing_co2=is.na(co2)) %>% 
+  group_by(time) %>% 
+  summarize(co2_total=sum(missing_co2)*2) %>% 
+  arrange(desc(co2_total)) %>% 
+  head(5)
+  
+```
+
+2. (5pt) Make a plot of total CO2 emissions over time for the U.S, China, and India. Add a few more countries of your choice. Explain what do you see. \
+```{r}
+data_pop %>% 
+  filter(!is.na(co2),name=="China"|name=="India"|name=="United States of America") %>%
+  ggplot()+
+  geom_line(aes(time,co2,col=name))
+
+```
+We see China and US having similar emissions up until around year 2000 when China picks up significantly and surpasses US while
+US tapers off and begins to decrease annual emissions slightly. India experiences semi-linear growth until it starts picking up
+a few years after 2000, but its growth rate increase is nowhere near China's rapid acceleration.
+
+3. (5pt) Now let’s analyze the CO2 emissions per capita (*co2_PC*). Make a similar plot of thesame countries. What does this figure suggest? \
+```{r}
+data_pop %>% 
+  filter(!is.na(co2_PC),name=="China"|name=="India"|name=="United States of America") %>%
+  ggplot()+
+  geom_line(aes(time,co2_PC,col=name))
+
+```
+In this case, we see little to no growth for India, U.S sees significant grow in the 60s up until the 70s from which point it continues to decrease annually. China has small linear growth and when 2000 hits its slope increases significantly.
+
+
+4. (6pt) Compute average CO2 emissions per capita across the continents (assume *region* is the same as continent). Comment what do you see. \
+Note: just compute averages over countries and ignore the fact that countries are of different size. \
+Hint: Americas 2016 should be 4.80. \
+```{r}
+co2_cont <- data_pop %>% 
+  filter(!is.na(co2_PC)) %>% 
+  group_by(time,region) %>% 
+  summarize(avg_co2=mean(co2_PC))
+
+co2_cont
+  
+
+```
+Africa has by far the lowest average emissions per capita while the other 5 continents have similar values between 4.5 and 6.7 for 2016. 
+
+5. (7pt) Make a barplot where you show the previous results–average CO2 emissions per capita across continents in 1960 and 2016. \
+Hint: it should look something along these lines(**Please refer to the spec for the graph**) \
+
+```{r}
+co2_cont %>% 
+  filter(!is.na(region),time==1960|time==2016) %>% 
+  ggplot(aes(x=region,y=avg_co2,fill=factor(time)))+
+  geom_col(position="dodge")+labs(fill="Time")
+```
+
+6. Which countries are the three largest, and three smallest CO2 emitters (in terms of CO2 per capita) in 2019 for each continent? (Assume *region* is continent). \
+```{r}
+data_pop %>% 
+  filter(!is.na(co2_PC)) %>% 
+  group_by(region) %>% 
+  filter(rank(desc(co2_PC))==1) %>% 
+  select(region,name,co2_PC)
+
+data_pop %>% 
+  filter(is.na(region))
+```
+
+
+
+---------------------------------------------------------------------
+
+# 4 GDP per capita (50pt)
+Let’s look at GDP per capita (*GDP_PC*)
+
+1. (8pt) Make a scatterplot of GDP per capita versus life expectancy by country, using data for 1960. Make the point size dependent on the country size, and color those according to the continent. Feel free to adjust the plot in other ways to make it better. \
+Comment what do you see there. \
+```{r}
+data_pop %>% 
+  filter(time==1960,!is.na(GDP_PC),!is.na(lifeExpectancy)) %>% 
+  select(name,GDP_PC,lifeExpectancy,totalPopulation,region) %>% 
+  ggplot(aes(GDP_PC,lifeExpectancy,col=factor(region),size=totalPopulation))+geom_point()
+  
+```
+
+
+2. (4pt) Make a similar plot, but this time use 2019 data only. \
+
+```{r}
+data_pop %>% 
+  filter(time==2019,!is.na(GDP_PC),!is.na(lifeExpectancy)) %>% 
+  select(name,GDP_PC,lifeExpectancy,totalPopulation,region) %>% 
+  ggplot(aes(GDP_PC,lifeExpectancy,col=factor(region),size=totalPopulation))+geom_point()
+```
+
+3. (6pt) Compare these two plots and comment what do you see. How has world developed through the last 60 years? \
+
+4. (6pt) Compute the average life expectancy for each continent in 1960 and 2019. Do the results fit with what do you see on the figures? \
+Note: here as *average*I mean just average over countries, ignore the fact that countries are of different size.\
+```{r}
+data_pop %>% 
+  filter(time==2019|time==1960,!is.na(lifeExpectancy)) %>% 
+  group_by(region,time) %>% 
+  summarize(avg_LE=mean(lifeExpectancy))
+```
+
+5. (8pt) Compute the average LE growth from 1960-2019 across the continents. Show the results in the order of growth. Explain what do you see. \
+Hint: these data (data in long form) is not the simplest to compute growth. But you may want to check out the lag() function. And do not forget to group data by continent when using lag(), otherwise your results will be messed up! See [**https://faculty.washington.edu/otoomet/info201-book/dplyr.html#dplyr-helpers-compute**](https://faculty.washington.edu/otoomet/info201-book/dplyr.html#dplyr-helpers-compute).\
+
+6. (6pt) Show the histogram of GDP per capita for years of 1960 and 2019. Try to put both histograms on the same graph, see how well you can do it! \
+
+7. (6pt) What was the ranking of US in terms of life expectancy in 1960 and in 2019? (When counting from top.) \
+Hint: check out the function rank()! \
+Hint2: 17 for 1960. \
+
+8. (6pt) If you did this correctly, then you noticed that US ranking has been falling quite a bit. But we also have more countries in 2019–what about the relative rank divided by the corresponding number of countries that have LE data in the corresponding year? \
+Hint: 0.0904 for 1960. \
+
+---------------------------------------------------------------------
+
+Finally tell us how many hours did you spend on this PS.
