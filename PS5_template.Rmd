@@ -101,7 +101,7 @@ data_pop %>%
 Namibia does not have an iso2 code which is the reason why there is one more
 unique value in names than iso2
     (b) (5pt) Now repeat the same for name and iso3-code. Are there country names that have more than one iso3-code? What are these countries? Hint: two of these entitites are *CHANISL* and *NLD CURACAO*.
-```{r}
+```{r, error=FALSE}
 data_pop %>% 
   filter(is.na(name)) %>% 
   distinct(iso3)
@@ -112,7 +112,11 @@ data_pop %>%
   count() %>% 
   arrange(desc(n))
 
-
+data_pop %>% 
+  filter(iso3==c("CHANISL","GBM","KOS","NLD_CURACAO")) %>% 
+  group_by(iso3) %>% 
+  sample_n(1)
+    
 ```
 Once again, it's not that one country has two different iso3 codes but rather there are countries that have iso3 codes but were not given names, hence there being more iso3 codes than there are names
     
@@ -300,5 +304,5 @@ data_pop %>%
 
 ---------------------------------------------------------------------
 
-Finally tell us how many hours did you spend on this PS.
+Finally tell us how many hours did you spend on this PS.\
 15?
